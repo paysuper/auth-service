@@ -1,5 +1,5 @@
 {{- $endpoint := .Values.backend -}}
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ .Release.Name }}
@@ -9,48 +9,66 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
   annotations:
-    kubernetes.io/ingress.class: nginx
-    #certmanager.k8s.io/issuer: {{ .Release.Name }}
-    cert-manager.io/cluster-issuer: letsencrypt-default-issuer
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     ingress.kubernetes.io/ssl-redirect: "true"
-    kubernetes.io/tls-acme: "true"
-    nginx.ingress.kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/configuration-snippet: |
       rewrite ^/oauth2/userinfo(.*)$ /userinfo$1 break;
 spec:
-  tls:
-    - hosts:
-        - {{printf "%s%s" .Values.ingress.hostnamePrefix .Values.ingress.hostname }}
-      secretName: {{ .Release.Name}}-ssl-secret
+  ingressClassName: "nginx"
   rules:
-    - host: {{printf "%s%s" .Values.ingress.hostnamePrefix .Values.ingress.hostname }}
-      http:
-        paths:
-          - path: {{ .Values.ingress.path }}
-            backend:
-              serviceName: {{ .Release.Name }}
-              servicePort: {{ $endpoint.service.port }}
-          - path: /userinfo
-            backend:
-              serviceName: hydra-external
-              servicePort: 4444
-          - path: /oauth2/auth
-            backend:
-              serviceName: hydra-external
-              servicePort: 4444
-          - path: /oauth2/token
-            backend:
-              serviceName: hydra-external
-              servicePort: 4444
-          - path: /oauth2/revoke
-            backend:
-              serviceName: hydra-external
-              servicePort: 4444
-          - path: /oauth2/userinfo
-            backend:
-              serviceName: hydra-external
-              servicePort: 4444
-          - path: /.well-known/jwks.json
-            backend:
-              serviceName: hydra-external
-              servicePort: 4444              
+  - host: {{printf "%s%s" .Values.ingress.hostnamePrefix .Values.ingress.hostname }}
+    http:
+      paths:
+        - path: {{ .Values.ingress.path }}
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ .Release.Name }}
+              port: 
+                number: {{ $endpoint.service.port }}
+        - path: /userinfo
+          pathType: Prefix
+          backend:
+            service:
+              name: hydra-external
+              port: 
+                number: 4444
+        - path: /oauth2/auth
+          pathType: Prefix
+          backend:
+            service:
+              name: hydra-external
+              port: 
+                number: 4444
+        - path: /oauth2/token
+          pathType: Prefix
+          backend:
+            service:
+              name: hydra-external
+              port:
+                number: 4444
+        - path: /oauth2/revoke
+          pathType: Prefix
+          backend:
+            service:
+              name: hydra-external
+              port:
+                number: 4444
+        - path: /oauth2/userinfo
+          pathType: Prefix
+          backend:
+            service:
+              name: hydra-external
+              port:
+                number: 4444
+        - path: /.well-known/jwks.json
+          pathType: Prefix
+          backend:
+            service:
+              name: hydra-external
+              port:
+                number: 4444              
+  tls:
+  - hosts:
+      - {{printf "%s%s" .Values.ingress.hostnamePrefix .Values.ingress.hostname }}
+    secretName: {{ .Release.Name }}-ssl-secret
